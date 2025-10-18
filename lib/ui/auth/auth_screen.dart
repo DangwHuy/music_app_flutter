@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lan2tesst/ui/home/home.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -12,6 +13,62 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+
+  bool _isLogin = true;
+  bool _isLoading = false;
+
+  void _submit() async {
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (_isLogin) {
+        await _auth.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        // Navigate to home on successful login
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MusicHomePage()),
+          );
+        }
+      } else {
+        await _auth.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        // Switch to login view after successful sign up
+        setState(() {
+          _isLogin = true;
+        });
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sign up successful! Please log in.')),
+          );
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Authentication failed.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -35,11 +92,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 children: <Widget>[
                   const SizedBox(height: 60),
                   const Text(
-                    'MusicApp', // Using app name as logo
+                    'Viewly',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 50,
-                      fontFamily: 'Billabong', // Placeholder for a custom font
+                      fontFamily: 'Billabong',
                       color: Colors.black,
                     ),
                   ),
@@ -52,7 +109,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         TextFormField(
                           controller: _emailController,
                           decoration: InputDecoration(
-                            hintText: 'Username or email',
+                            hintText: 'Email',
                             filled: true,
                             fillColor: Colors.grey[200],
                             border: OutlineInputBorder(
@@ -62,8 +119,8 @@ class _AuthScreenState extends State<AuthScreen> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your username or email';
+                            if (value == null || !value.contains('@')) {
+                              return 'Please enter a valid email';
                             }
                             return null;
                           },
@@ -83,75 +140,44 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           obscureText: true,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
+                            if (value == null || value.length < 6) {
+                              return 'Password must be at least 6 characters long';
                             }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {},
-                            child: const Text('Forgot password?'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (context) => const MusicHomePage()),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text('Log In'),
-                        ),
+                        const SizedBox(height: 20),
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : ElevatedButton(
+                                onPressed: _submit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                child: Text(_isLogin ? 'Log In' : 'Sign Up'),
+                              ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
                   Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Text('OR', style: TextStyle(color: Colors.grey)),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.facebook, color: Colors.blue),
-                    label: const Text(
-                      'Log in with Facebook',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Don't have an account? "),
+                      Text(_isLogin ? "Don't have an account? " : "Already have an account? "),
                       GestureDetector(
                         onTap: () {
-                          // Navigate to Sign up screen
+                          setState(() {
+                            _isLogin = !_isLogin;
+                          });
                         },
-                        child: const Text(
-                          'Sign up.',
-                          style: TextStyle(
+                        child: Text(
+                          _isLogin ? 'Sign up.' : 'Log in.',
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
                           ),

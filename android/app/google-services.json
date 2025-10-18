@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "728192989937",
+    "project_id": "appviewly",
+    "storage_bucket": "appviewly.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:728192989937:android:962fc8949bec296fadc750",
+        "android_client_info": {
+          "package_name": "com.example.lan2tesst"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRHArg1rRK9Wy140IEtxkd2tm6QoJy21M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
