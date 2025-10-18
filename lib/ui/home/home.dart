@@ -152,8 +152,17 @@ class _StoryCircle extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(isFirst ? 'Your Story' : 'username', style: const TextStyle(fontSize: 12)),
+          const SizedBox(height: 2), // Reduced height from 4 to 2
+          SizedBox(
+            width: 64, // Match the avatar's diameter
+            child: Text(
+              isFirst ? 'Your Story' : 'user_$index',
+              overflow: TextOverflow.ellipsis, // Add ... if text is too long
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
         ],
       ),
     );
