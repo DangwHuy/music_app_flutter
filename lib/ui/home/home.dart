@@ -4,22 +4,6 @@ import 'package:lan2tesst/ui/discovery/discovery.dart';
 import 'package:lan2tesst/ui/settings/settings.dart';
 import 'package:lan2tesst/ui/user/user.dart';
 
-class MusicApp extends StatelessWidget {
-  const MusicApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MusicApp',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MusicHomePage(),
-    );
-  }
-}
-
 class MusicHomePage extends StatefulWidget {
   const MusicHomePage({super.key});
 
