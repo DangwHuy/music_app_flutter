@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:lan2tesst/ui/discovery/discovery.dart';
+import 'package:lan2tesst/ui/search/search.dart';
 import 'package:lan2tesst/ui/settings/settings.dart';
 import 'package:lan2tesst/ui/user/user.dart';
 
@@ -14,7 +14,7 @@ class MusicHomePage extends StatefulWidget {
 class _MusicHomePageState extends State<MusicHomePage> {
   final List<Widget> _tabs = [
     const HomeTab(),
-    const DiscoveryTab(),
+    const SearchTab(),
     const AccountTab(),
     const SettingsTab(),
   ];
@@ -26,16 +26,21 @@ class _MusicHomePageState extends State<MusicHomePage> {
         backgroundColor: Theme.of(context).colorScheme.onInverseSurface,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.album), label: 'Discovery'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Account'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Setting'),
         ],
       ),
       tabBuilder: (BuildContext context, int index) {
+        // Use a different navigation bar for the search tab
+        final navigationBar = (index == 1)
+            ? null // No navigation bar for the search tab, as it has its own AppBar
+            : const CupertinoNavigationBar(
+                middle: Text('Viewly'),
+              );
+
         return CupertinoPageScaffold(
-          navigationBar: const CupertinoNavigationBar(
-            middle: Text('Viewly'),
-          ),
+          navigationBar: navigationBar,
           child: _tabs[index],
         );
       },
