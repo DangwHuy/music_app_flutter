@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lan2tesst/ui/create_post/create_post.dart';
+import 'package:lan2tesst/ui/reels/reels_screen.dart';
 import 'package:lan2tesst/ui/search/search.dart';
-import 'package:lan2tesst/ui/settings/settings.dart';
 import 'package:lan2tesst/ui/user/user.dart';
 
 class MusicHomePage extends StatefulWidget {
@@ -12,31 +15,48 @@ class MusicHomePage extends StatefulWidget {
 }
 
 class _MusicHomePageState extends State<MusicHomePage> {
+  int _currentIndex = 0;
   final List<Widget> _tabs = [
     const HomeTab(),
     const SearchTab(),
+    const ReelsTab(),
     const AccountTab(),
-    const SettingsTab(),
   ];
+
+  void _onTabTapped(int index) {
+    if (index == 2) {
+      // The "Create" button
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+      );
+    } else {
+      // Adjust index for the tabs list, as "Create" is not a real tab
+      setState(() {
+        _currentIndex = index > 2 ? index - 1 : index;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoTabScaffold(
-      tabBar: CupertinoTabBar(
-        backgroundColor: Theme.of(context).colorScheme.onInverseSurface,
+    return Scaffold(
+      body: _tabs[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex < 2 ? _currentIndex : _currentIndex + 1,
+        onTap: _onTabTapped,
+        type: BottomNavigationBarType.fixed,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey.shade600,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Account'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Setting'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_box_outlined), label: 'Create'),
+          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Reels'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
         ],
       ),
-      tabBuilder: (BuildContext context, int index) {
-        // The HomeTab will manage its own scrolling and app bar, so we don't provide one here.
-        return CupertinoPageScaffold(
-          child: _tabs[index],
-        );
-      },
     );
   }
 }
@@ -49,36 +69,27 @@ class HomeTab extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // SliverAppBar that appears and disappears on scroll
           SliverAppBar(
             title: const Text(
               'Viewly',
-              style: TextStyle(
-                fontFamily: 'Billabong',
-                fontSize: 35,
-                color: Colors.black,
-              ),
+              style: TextStyle(fontFamily: 'Billabong', fontSize: 35, color: Colors.black),
             ),
             actions: [
               IconButton(icon: const Icon(Icons.favorite_border), onPressed: () {}),
               IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () {}),
             ],
-            floating: true, // Appears as soon as you scroll up
-            snap: true,     // Snaps into view
+            floating: true,
+            snap: true,
             elevation: 0,
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           ),
-
-          // The Story bar
           const SliverToBoxAdapter(
             child: _StoryBar(),
           ),
-
-          // The list of posts
           SliverList(
             delegate: SliverChildBuilderDelegate(
-              (context, index) => PostCard(index: index), // Pass the index to the PostCard
-              childCount: 10, // Let's create 10 mock posts
+              (context, index) => PostCard(index: index),
+              childCount: 10,
             ),
           ),
         ],
@@ -87,88 +98,116 @@ class HomeTab extends StatelessWidget {
   }
 }
 
-class _StoryBar extends StatelessWidget {
+class _StoryBar extends StatefulWidget {
   const _StoryBar();
 
   @override
+  State<_StoryBar> createState() => _StoryBarState();
+}
+
+class _StoryBarState extends State<_StoryBar> {
+  @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return const SizedBox.shrink();
+
     return Container(
       height: 100,
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: 10,
-        itemBuilder: (context, index) {
-          // Pass the index to each story circle
-          return _StoryCircle(index: index);
-        },
-      ),
+      child: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
+          builder: (context, snapshot) {
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              scrollDirection: Axis.horizontal,
+              itemCount: 10,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  if (!snapshot.hasData) {
+                    return const _StoryCircle(index: 0, isPlaceholder: true);
+                  }
+                  final userData = snapshot.data!.data() as Map<String, dynamic>;
+                  return _StoryCircle(
+                    index: 0,
+                    username: userData['username'] ?? '',
+                    imageUrl: userData['avatarUrl'],
+                  );
+                }
+                return _StoryCircle(index: index);
+              },
+            );
+          }),
     );
   }
 }
 
 class _StoryCircle extends StatelessWidget {
   final int index;
-  const _StoryCircle({super.key, required this.index});
+  final String? username;
+  final String? imageUrl;
+  final bool isPlaceholder;
+
+  const _StoryCircle({
+    super.key,
+    required this.index,
+    this.username,
+    this.imageUrl,
+    this.isPlaceholder = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isFirst = index == 0;
-    // Generate a deterministic but different image for each story avatar
-    final imageUrl = 'https://picsum.photos/seed/story$index/100/100';
+    final mockImageUrl = 'https://picsum.photos/seed/story$index/100/100';
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 12.0),
-      child: Column(
-        children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              const CircleAvatar(
-                radius: 32,
-                backgroundColor: Colors.orange, // Story border color
-              ),
-              const CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white,
-              ),
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: Colors.grey[300],
-                backgroundImage: NetworkImage(imageUrl), // Load the avatar image
-              ),
-              if (isFirst)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 18),
-                  ),
+    return SizedBox(
+      width: 80,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                const CircleAvatar(radius: 30, backgroundColor: Colors.orange),
+                const CircleAvatar(radius: 28, backgroundColor: Colors.white),
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: isPlaceholder
+                      ? null
+                      : NetworkImage(isFirst ? (imageUrl ?? mockImageUrl) : mockImageUrl),
                 ),
-            ],
-          ),
-          const SizedBox(height: 2), // Reduced height from 4 to 2
-          SizedBox(
-            width: 64, // Match the avatar's diameter
-            child: Text(
-              isFirst ? 'Your Story' : 'user_$index',
-              overflow: TextOverflow.ellipsis, // Add ... if text is too long
+                if (isFirst && !isPlaceholder)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: const Icon(Icons.add, color: Colors.white, size: 16),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              isPlaceholder
+                  ? ''
+                  : (isFirst ? username ?? 'You' : 'user_$index'),
+              overflow: TextOverflow.ellipsis,
               maxLines: 1,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
-
 
 class PostCard extends StatelessWidget {
   final int index;
@@ -176,10 +215,8 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use the index to generate a deterministic but different image for each card.
-    // The first post (index 0) will have a static image, the rest will be seeded.
     final imageUrl = index == 0
-        ? 'https://picsum.photos/id/1025/600/400' // A static image for the user's post (a dog)
+        ? 'https://picsum.photos/id/1025/600/400'
         : 'https://picsum.photos/seed/${index + 1}/600/400';
 
     return Card(
@@ -188,20 +225,14 @@ class PostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post Header
           const ListTile(
-            leading: CircleAvatar(
-              // Placeholder for user avatar
-              backgroundColor: Colors.grey,
-            ),
+            leading: CircleAvatar(backgroundColor: Colors.grey),
             title: Text('username', style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('Location'),
             trailing: Icon(Icons.more_horiz),
           ),
-
-          // Post Image
           Image.network(
-            imageUrl, // Use the generated image URL
+            imageUrl,
             fit: BoxFit.cover,
             width: double.infinity,
             height: 300,
@@ -210,8 +241,6 @@ class PostCard extends StatelessWidget {
               child: Center(child: Icon(Icons.error, color: Colors.grey)),
             ),
           ),
-
-          // Action Buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             child: Row(
@@ -224,8 +253,6 @@ class PostCard extends StatelessWidget {
               ],
             ),
           ),
-
-          // Likes and Caption
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(

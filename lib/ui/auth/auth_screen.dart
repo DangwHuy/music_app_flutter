@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lan2tesst/ui/home/home.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
   bool _isLogin = true;
   bool _isLoading = false;
@@ -30,26 +32,43 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (_isLogin) {
+        // Login logic
         await _auth.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
-        // Navigate to home on successful login
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const MusicHomePage()),
           );
         }
       } else {
-        await _auth.createUserWithEmailAndPassword(
+        // Sign up logic
+        final userCredential = await _auth.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+
+        // Create a user document in Firestore
+        final user = userCredential.user;
+        if (user != null) {
+          await _firestore.collection('users').doc(user.uid).set({
+            'username': user.email!.split('@')[0], // a default username
+            'email': user.email,
+            'displayName': '',
+            'bio': '',
+            'avatarUrl': null,
+            'posts': 0,
+            'followers': [],
+            'following': [],
+          });
+        }
+
         // Switch to login view after successful sign up
         setState(() {
           _isLogin = true;
         });
-        if(mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Sign up successful! Please log in.')),
           );
