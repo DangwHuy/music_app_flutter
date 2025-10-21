@@ -1,9 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -14,20 +11,13 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
-  File? _imageFile;
   bool _isUploading = false;
 
-  Future<void> _selectImage() async {
-    final XFile? selectedImage = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (selectedImage != null) {
-      setState(() {
-        _imageFile = File(selectedImage.path);
-      });
-    }
-  }
-
   Future<void> _handlePost() async {
-    if (_imageFile == null || _isUploading) {
+    if (_captionController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please write a caption.')),
+      );
       return;
     }
 
@@ -37,7 +27,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      // Handle user not logged in
       setState(() {
         _isUploading = false;
       });
@@ -45,24 +34,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     try {
-      // 1. Upload image to Firebase Storage
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}_${currentUser.uid}.jpg';
-      final Reference storageRef = FirebaseStorage.instance.ref().child('posts').child(fileName);
-      await storageRef.putFile(_imageFile!);
-      final String imageUrl = await storageRef.getDownloadURL();
+      final String randomImageUrl = 'https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/600/400';
 
-      // 2. Create post document in Firestore
-      final postsCollection = FirebaseFirestore.instance.collection('posts');
-      await postsCollection.add({
+      // We no longer add a 'comments' field here as it is now a subcollection.
+      await FirebaseFirestore.instance.collection('posts').add({
         'userId': currentUser.uid,
-        'imageUrl': imageUrl,
+        'imageUrl': randomImageUrl,
         'caption': _captionController.text,
-        'likes': [],
-        'comments': [],
+        'likes': [], // The 'likes' for the post itself
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // 3. Close the screen
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -100,34 +82,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             )
         ],
       ),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            if (_imageFile == null)
-              GestureDetector(
-                onTap: _selectImage,
-                child: Container(
-                  height: 200,
-                  width: double.infinity,
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
-                  ),
-                ),
-              )
-            else
-              Image.file(_imageFile!, height: 300, width: double.infinity, fit: BoxFit.cover),
-            
-            const SizedBox(height: 16),
-
             TextField(
               controller: _captionController,
+              autofocus: true, // Automatically focus the text field
               decoration: const InputDecoration(
-                hintText: 'Write a caption...',
+                hintText: 'What\'s on your mind?',
                 border: InputBorder.none,
               ),
-              maxLines: 3,
+              maxLines: 8,
             ),
           ],
         ),
