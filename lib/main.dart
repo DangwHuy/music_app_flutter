@@ -3,9 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:flutter_localizations/flutter_localizations.dart'; // Temporarily commented out
 import 'package:lan2tesst/firebase_options.dart';
 import 'package:lan2tesst/ui/auth/auth_screen.dart';
 import 'package:lan2tesst/ui/home/home.dart';
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // Temporarily commented out
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +28,19 @@ class ViewlyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const Wrapper(), // Use a Wrapper to handle auth state
+      // --- Temporarily commented out ---
+      // localizationsDelegates: const [
+      //   AppLocalizations.delegate,
+      //   GlobalMaterialLocalizations.delegate,
+      //   GlobalWidgetsLocalizations.delegate,
+      //   GlobalCupertinoLocalizations.delegate,
+      // ],
+      // supportedLocales: const [
+      //   Locale('en', ''), 
+      //   Locale('vi', ''),
+      // ],
+      // -----------------------
+      home: const Wrapper(),
     );
   }
 }
@@ -39,6 +53,7 @@ class Wrapper extends StatefulWidget {
 }
 
 class _WrapperState extends State<Wrapper> {
+
   @override
   void initState() {
     super.initState();
@@ -52,25 +67,14 @@ class _WrapperState extends State<Wrapper> {
   Future<void> _initMessaging(User user) async {
     final messaging = FirebaseMessaging.instance;
     
-    // Request permission
-    await messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
+    await messaging.requestPermission();
 
-    // Get the FCM token
     final token = await messaging.getToken();
     if (token == null) return;
 
-    // Save the token to the user's document in Firestore
-    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'fcmTokens': FieldValue.arrayUnion([token])
-    });
+    }, SetOptions(merge: true));
   }
 
   @override
@@ -82,9 +86,9 @@ class _WrapperState extends State<Wrapper> {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasData) {
-          return const MusicHomePage(); // User is logged in
+          return const MusicHomePage();
         }
-        return const AuthScreen(); // User is not logged in
+        return const AuthScreen();
       },
     );
   }

@@ -13,6 +13,34 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
   bool _isUploading = false;
 
+  // New function to create notifications for followers
+  Future<void> _notifyFollowers(String postId, String postImageUrl, String caption) async {
+    final currentUser = FirebaseAuth.instance.currentUser!;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+    final followers = List<String>.from(userDoc.data()?['followers'] ?? []);
+    final username = userDoc.data()?['username'] ?? 'someone';
+
+    // Use a batch write to create all notifications at once for efficiency
+    final WriteBatch batch = FirebaseFirestore.instance.batch();
+
+    for (String followerId in followers) {
+      final notificationRef = FirebaseFirestore.instance.collection('notifications').doc();
+      batch.set(notificationRef, {
+        'recipientId': followerId,
+        'actorId': currentUser.uid,
+        'actorUsername': username,
+        'type': 'new_post',
+        'postId': postId,
+        'postImageUrl': postImageUrl, 
+        'caption': caption, // Include the caption
+        'timestamp': FieldValue.serverTimestamp(),
+        'read': false,
+      });
+    }
+
+    await batch.commit();
+  }
+
   Future<void> _handlePost() async {
     if (_captionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -35,15 +63,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     try {
       final String randomImageUrl = 'https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/600/400';
+      final String caption = _captionController.text;
 
-      // We no longer add a 'comments' field here as it is now a subcollection.
-      await FirebaseFirestore.instance.collection('posts').add({
+      // Create the post first
+      final newPostRef = await FirebaseFirestore.instance.collection('posts').add({
         'userId': currentUser.uid,
         'imageUrl': randomImageUrl,
-        'caption': _captionController.text,
-        'likes': [], // The 'likes' for the post itself
+        'caption': caption,
+        'likes': [],
         'timestamp': FieldValue.serverTimestamp(),
       });
+
+      // Then, notify followers about the new post
+      await _notifyFollowers(newPostRef.id, randomImageUrl, caption);
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -88,7 +120,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           children: [
             TextField(
               controller: _captionController,
-              autofocus: true, // Automatically focus the text field
+              autofocus: true, 
               decoration: const InputDecoration(
                 hintText: 'What\'s on your mind?',
                 border: InputBorder.none,

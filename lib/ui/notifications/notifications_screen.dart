@@ -1,10 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lan2tesst/ui/post_detail/post_detail_screen.dart'; // Import the new screen
+import 'package:lan2tesst/ui/post_detail/post_detail_screen.dart';
+import 'package:lan2tesst/ui/user/user_profile_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
+
+  // Function to build the message based on notification type
+  Widget _buildNotificationMessage(Map<String, dynamic> notification) {
+    final String actorUsername = notification['actorUsername'] ?? 'Someone';
+    final String type = notification['type'] ?? '';
+
+    String message;
+    switch (type) {
+      case 'like':
+        message = 'liked your post.';
+        break;
+      case 'comment':
+        message = 'commented on your post.';
+        break;
+      case 'follow':
+        message = 'started following you.';
+        break;
+      default:
+        message = 'interacted with you.';
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(color: Colors.black, fontSize: 16),
+        children: [
+          TextSpan(
+            text: actorUsername,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          TextSpan(text: ' $message'),
+        ],
+      ),
+    );
+  }
+
+  // Function to handle navigation when a notification is tapped
+  void _handleTap(BuildContext context, Map<String, dynamic> notification) {
+    final String? postId = notification['postId'];
+    final String? actorId = notification['actorId'];
+    final String type = notification['type'] ?? '';
+
+    if (type == 'like' || type == 'comment') {
+      if (postId != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => PostDetailScreen(postId: postId)),
+        );
+      }
+    } else if (type == 'follow') {
+      if (actorId != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => UserProfileScreen(userId: actorId)),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,23 +97,12 @@ class NotificationsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final notificationDoc = notifications[index];
               final notification = notificationDoc.data() as Map<String, dynamic>;
-              final String actorUsername = notification['actorUsername'] ?? 'Someone';
-              final String type = notification['type'] ?? ''; // 'like' or 'comment'
-
-              String message;
-              if (type == 'like') {
-                message = 'liked your post.';
-              } else if (type == 'comment') {
-                message = 'commented on your post.';
-              } else {
-                message = 'interacted with your post.';
-              }
+              final type = notification['type'] ?? '';
 
               return Dismissible(
-                key: Key(notificationDoc.id), // Unique key for each item
+                key: Key(notificationDoc.id),
                 direction: DismissDirection.endToStart,
                 onDismissed: (direction) async {
-                  // Delete the notification from Firestore
                   await notificationDoc.reference.delete();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Notification dismissed')),
@@ -70,32 +115,14 @@ class NotificationsScreen extends StatelessWidget {
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
                 child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.person)), // Placeholder avatar
-                  title: RichText(
-                    text: TextSpan(
-                      style: DefaultTextStyle.of(context).style,
-                      children: [
-                        TextSpan(
-                          text: actorUsername,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        TextSpan(text: ' $message'),
-                      ],
-                    ),
-                  ),
-                  trailing: notification['postImageUrl'] != null
+                  leading: const CircleAvatar(child: Icon(Icons.person)), // Placeholder
+                  title: _buildNotificationMessage(notification),
+                  trailing: type == 'follow' 
+                    ? null // No trailing image for follow notifications
+                    : (notification['postImageUrl'] != null 
                       ? Image.network(notification['postImageUrl'], width: 50, height: 50, fit: BoxFit.cover)
-                      : null,
-                  onTap: () {
-                    final String? postId = notification['postId'];
-                    if (postId != null) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => PostDetailScreen(postId: postId),
-                        ),
-                      );
-                    }
-                  },
+                      : null),
+                  onTap: () => _handleTap(context, notification),
                 ),
               );
             },
