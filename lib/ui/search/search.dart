@@ -43,7 +43,7 @@ class _SearchTabState extends State<SearchTab> {
           controller: _searchController,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: 'Search for users...',
+            hintText: 'Tìm kiếm người dùng...',
             border: InputBorder.none,
           ),
         ),
@@ -52,7 +52,7 @@ class _SearchTabState extends State<SearchTab> {
         stream: _usersStream,
         builder: (context, snapshot) {
           if (_searchController.text.isEmpty) {
-            return const Center(child: Text('Search for other users.'));
+            return const Center(child: Text('Chưa có nội dung tìm kiếm.'));
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());

@@ -7,7 +7,7 @@ class ReelsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-        child: Text('Reels Tab'),
+        child: Text('Thước phim'),
       ),
     );
   }
