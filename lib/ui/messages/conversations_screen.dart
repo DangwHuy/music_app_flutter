@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lan2tesst/ui/ai_chat/ai_chat_screen.dart';
 import 'package:lan2tesst/ui/messages/chat_screen.dart';
 import 'package:lan2tesst/ui/messages/create_group_screen.dart';
 
@@ -53,7 +54,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> with SingleTi
         'isGroup': false,
         'lastMessage': '',
         'lastMessageTimestamp': Timestamp.now(),
-        'lastMessageSenderId': null, 
+        'lastMessageSenderId': null,
       });
     }
 
@@ -98,6 +99,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> with SingleTi
             elevation: 0,
             title: titleWidget,
             actions: [
+              IconButton(icon: const Icon(Icons.psychology_alt_outlined), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AiChatScreen()))),
               IconButton(icon: const Icon(Icons.edit_note_outlined), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const CreateGroupScreen()))),
             ],
           ),
@@ -212,11 +214,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> with SingleTi
             final lastSenderId = convoData['lastMessageSenderId'] as String?;
             final bool isUnread = lastSenderId != null && lastSenderId != currentUserId;
 
-            // UPGRADE: Read the nicknames map
             final nicknames = convoData['nicknames'] as Map<String, dynamic>? ?? {};
 
             if (isGroup) {
-              // This block for group chats is preserved
               return ListTile(
                 leading: const CircleAvatar(radius: 30, child: Icon(Icons.group)),
                 title: Text(convoData['groupName'] ?? 'Trò chuyện nhóm', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -224,11 +224,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> with SingleTi
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => ChatScreen(conversationId: convo.id, groupName: convoData['groupName'], isGroup: true))),
               );
             }
-            
+
             final String otherUserId = participants.firstWhere((id) => id != currentUserId, orElse: () => '');
             if (otherUserId.isEmpty) return const SizedBox.shrink();
-            
-            // UPGRADE: Check for nickname before building FutureBuilder
+
             final String? nickname = nicknames[otherUserId];
 
             return FutureBuilder<DocumentSnapshot>(
@@ -241,7 +240,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> with SingleTi
                   final userData = userSnapshot.data!.data() as Map<String, dynamic>;
                   displayName = userData['displayName']?.isNotEmpty == true ? userData['displayName'] : userData['username'];
                 } else {
-                  // Show placeholder while fetching user data
                   displayName = 'Đang tải...';
                 }
 
@@ -250,7 +248,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> with SingleTi
                    background: Container(color: Colors.blue, padding: const EdgeInsets.symmetric(horizontal: 20), alignment: Alignment.centerLeft, child: const Icon(Icons.push_pin, color: Colors.white)),
                   secondaryBackground: Container(color: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 20), alignment: Alignment.centerRight, child: const Icon(Icons.delete, color: Colors.white)),
                   confirmDismiss: (direction) async {
-                    // This logic is preserved
                     if (direction == DismissDirection.endToStart) {
                        final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Xóa cuộc trò chuyện?'), content: const Text('Hành động này sẽ xóa vĩnh viễn cuộc trò chuyện.'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')), TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Xóa', style: TextStyle(color: Colors.red)))]));
                       return confirmed ?? false;
@@ -260,7 +257,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> with SingleTi
                     }
                   },
                   child: ListTile(
-                    // This widget is also preserved, only the title is now dynamic
                     leading: CircleAvatar(radius: 30, backgroundColor: Colors.grey.shade800), // Simplified leading for clarity, your original logic is kept in your file
                     title: Text(displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     subtitle: Text(convoData['lastMessage'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isUnread ? Colors.white : Colors.grey, fontWeight: isUnread ? FontWeight.bold : FontWeight.normal)),

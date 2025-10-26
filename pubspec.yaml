@@ -10,26 +10,28 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations: # ADDED FOR I18N
-    sdk: flutter         # ADDED FOR I18N
-  intl: ^0.20.2          # UPDATED VERSION
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+  # ADDED: Google AI package for Gemini
+  google_generative_ai: ^0.4.0
 
   firebase_core: ^2.32.0
   firebase_auth: ^4.20.0
   cloud_firestore: ^4.17.4
-  firebase_storage: ^11.7.6
+  firebase_storage: ^11.7.7
   image_picker: ^1.1.2
   firebase_messaging: ^14.9.3
   cupertino_icons: ^1.0.8
   http: ^1.5.0
-
+  story_view: ^0.16.0 # (hoặc phiên bản mới nhất)
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 
 flutter:
-  generate: true # ADDED FOR I18N
+  generate: true
   uses-material-design: true
 
   assets:
