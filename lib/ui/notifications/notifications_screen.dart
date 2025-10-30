@@ -7,7 +7,7 @@ import 'package:lan2tesst/ui/user/user_profile_screen.dart';
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
-  // Function to build the message based on notification type
+  // PRESERVED: This function is unchanged.
   Widget _buildNotificationMessage(Map<String, dynamic> notification) {
     final String actorUsername = notification['actorUsername'] ?? 'Someone';
     final String type = notification['type'] ?? '';
@@ -41,17 +41,32 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  // Function to handle navigation when a notification is tapped
-  void _handleTap(BuildContext context, Map<String, dynamic> notification) {
+  // UPGRADED: This function now fetches the full document before navigating.
+  void _handleTap(BuildContext context, Map<String, dynamic> notification) async {
     final String? postId = notification['postId'];
     final String? actorId = notification['actorId'];
     final String type = notification['type'] ?? '';
 
     if (type == 'like' || type == 'comment') {
       if (postId != null) {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => PostDetailScreen(postId: postId)),
-        );
+        try {
+          // Fetch the full post document from Firestore.
+          final DocumentSnapshot postDoc = await FirebaseFirestore.instance.collection('posts').doc(postId).get();
+          if (postDoc.exists) {
+            // Navigate by passing the entire document, which is now required.
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => PostDetailScreen(postDocument: postDoc)),
+            );
+          } else {
+             ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This post no longer exists.')),
+            );
+          }
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load post: $e')),
+          );
+        }
       }
     } else if (type == 'follow') {
       if (actorId != null) {
@@ -62,6 +77,7 @@ class NotificationsScreen extends StatelessWidget {
     }
   }
 
+  // PRESERVED: The build method is unchanged.
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;

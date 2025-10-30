@@ -17,7 +17,7 @@ class _AccountTabState extends State<AccountTab> {
 
   // --- CÁC HÀM LOGIC CỦA BẠN VẪN GIỮ NGUYÊN ---
   Future<void> _logout() async {
-    // ... (code cũ)
+    // ... (code cũ giữ nguyên)
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -42,7 +42,7 @@ class _AccountTabState extends State<AccountTab> {
   }
 
   void _showSettingsMenu() {
-    // ... (code cũ)
+    // ... (code cũ giữ nguyên)
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey[900], // Màu nền tối
@@ -86,7 +86,7 @@ class _AccountTabState extends State<AccountTab> {
   }
 
   void _showCreateMenu() {
-    // ... (code cũ)
+    // ... (code cũ giữ nguyên)
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF262626),
@@ -145,10 +145,16 @@ class _AccountTabState extends State<AccountTab> {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
       builder: (context, userSnapshot) {
-        // Phần xử lý loading/error giữ nguyên
-        if (!userSnapshot.hasData) { /* ... */ }
-        if (userSnapshot.hasError) { /* ... */ }
-        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+        // *** THAY ĐỔI: Thêm kiểm tra exists để tránh lỗi nếu document không tồn tại ***
+        if (!userSnapshot.hasData || userSnapshot.hasError || !userSnapshot.data!.exists) {
+          return const Material(
+            color: Colors.white,
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {}; // Fallback nếu data() null (dù ít xảy ra)
 
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('posts').where('userId', isEqualTo: currentUser.uid).orderBy('timestamp', descending: true).snapshots(),
@@ -306,10 +312,14 @@ class _AccountTabState extends State<AccountTab> {
       ),
       itemCount: posts.length,
       itemBuilder: (context, index) {
-        final postData = posts[index].data() as Map<String, dynamic>;
+        final postData = posts[index].data() as Map<String, dynamic>? ?? {}; // *** THAY ĐỔI: Fallback nếu data null ***
+        final imageUrl = postData['imageUrl'];
+        if (imageUrl == null) {
+          return Container(color: Colors.grey[300]); // Placeholder nếu không có ảnh
+        }
         // Thêm widget loading cho từng ảnh
         return Image.network(
-          postData['imageUrl'],
+          imageUrl,
           fit: BoxFit.cover, // Grid vẫn nên dùng cover
           loadingBuilder: (context, child, progress) => progress == null ? child : Container(color: Colors.grey[200]),
           errorBuilder: (context, error, stack) => Container(color: Colors.grey[300]),
