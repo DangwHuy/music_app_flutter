@@ -88,25 +88,23 @@ class _MusicHomePageState extends State<MusicHomePage> {
     );
   }
 
-  // *** THÊM: Hàm custom icon với gradient và animation ***
+   // *** SỬA: Logic isSelected để tránh highlight sai ***
   Widget _buildNavIcon(IconData icon, int index) {
-    final isSelected = (index == _currentIndex) ||
-        (index > 2 && index - 1 == _currentIndex);
+    // Create (index=2) không bao giờ selected
+    final isSelected = index == 2
+        ? false
+        : (index < 2 ? index == _currentIndex : index - 1 == _currentIndex);
+
     return AnimatedScale(
       scale: isSelected ? 1.1 : 1.0,
-      // *** THÊM: Scale animation khi selected ***
       duration: const Duration(milliseconds: 200),
       child: Container(
-        padding: const EdgeInsets.all(8), // *** THÊM: Padding cho icon ***
+        padding: const EdgeInsets.all(8),
         decoration: isSelected
             ? BoxDecoration(
           shape: BoxShape.circle,
-          gradient: const LinearGradient( // *** THÊM: Gradient ngầu cho selected ***
-            colors: [
-              Colors.pinkAccent,
-              Colors.orangeAccent,
-              Colors.yellowAccent
-            ],
+          gradient: const LinearGradient(
+            colors: [Colors.pinkAccent, Colors.orangeAccent, Colors.yellowAccent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -114,14 +112,15 @@ class _MusicHomePageState extends State<MusicHomePage> {
             : null,
         child: Icon(
           icon,
-          size: 30, // *** THÊM: Size lớn hơn ***
-          color: isSelected ? Colors.white : Colors.grey
-              .shade500, // *** THÊM: Màu pastel cho unselected ***
+          size: 30,
+          color: isSelected ? Colors.white : Colors.grey.shade500,
         ),
       ),
     );
   }
 }
+
+
 
 // --- UPGRADED: HomeTab with better spacing, colors, and animations ---
 class HomeTab extends StatelessWidget {

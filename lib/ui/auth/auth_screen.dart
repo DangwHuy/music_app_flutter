@@ -14,6 +14,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController(); // *** THÊM: Controller cho xác nhận mật khẩu ***
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
@@ -70,14 +71,34 @@ class _AuthScreenState extends State<AuthScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sign up successful! Please log in.')),
+            const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.')),
           );
         }
       }
     } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Không tìm thấy tài khoản với email này.';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Mật khẩu không đúng.';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'Email này đã được sử dụng.';
+          break;
+        case 'weak-password':
+          errorMessage = 'Mật khẩu quá yếu.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Email không hợp lệ.';
+          break;
+        default:
+          errorMessage = 'Đã xảy ra lỗi. Vui lòng thử lại.';
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Authentication failed.')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } finally {
@@ -93,6 +114,7 @@ class _AuthScreenState extends State<AuthScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose(); // *** THÊM: Dispose controller mới ***
     super.dispose();
   }
 
@@ -114,7 +136,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     'Viewly',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 50,
+                      fontSize: 60,
                       fontFamily: 'Billabong',
                       color: Colors.black,
                     ),
@@ -128,7 +150,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         TextFormField(
                           controller: _emailController,
                           decoration: InputDecoration(
-                            hintText: 'Email',
+                            hintText: 'Email', // Giữ nguyên vì là thuật ngữ chung
                             filled: true,
                             fillColor: Colors.grey[200],
                             border: OutlineInputBorder(
@@ -139,7 +161,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           validator: (value) {
                             if (value == null || !value.contains('@')) {
-                              return 'Please enter a valid email';
+                              return 'Vui lòng nhập email hợp lệ';
                             }
                             return null;
                           },
@@ -148,7 +170,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         TextFormField(
                           controller: _passwordController,
                           decoration: InputDecoration(
-                            hintText: 'Password',
+                            hintText: 'Mật khẩu',
                             filled: true,
                             fillColor: Colors.grey[200],
                             border: OutlineInputBorder(
@@ -160,26 +182,49 @@ class _AuthScreenState extends State<AuthScreen> {
                           obscureText: true,
                           validator: (value) {
                             if (value == null || value.length < 6) {
-                              return 'Password must be at least 6 characters long';
+                              return 'Mật khẩu phải có ít nhất 6 ký tự';
                             }
                             return null;
                           },
                         ),
+                        if (!_isLogin) ...[ // *** THÊM: Chỉ hiển thị khi đăng ký ***
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _confirmPasswordController,
+                            decoration: InputDecoration(
+                              hintText: 'Xác nhận mật khẩu',
+                              filled: true,
+                              fillColor: Colors.grey[200],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(5),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            ),
+                            obscureText: true,
+                            validator: (value) {
+                              if (value == null || value != _passwordController.text) {
+                                return 'Mật khẩu xác nhận không khớp';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 20),
                         _isLoading
                             ? const Center(child: CircularProgressIndicator())
                             : ElevatedButton(
-                                onPressed: _submit,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                                child: Text(_isLogin ? 'Log In' : 'Sign Up'),
-                              ),
+                          onPressed: _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(_isLogin ? 'Đăng nhập' : 'Đăng ký'),
+                        ),
                       ],
                     ),
                   ),
@@ -187,7 +232,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(_isLogin ? "Don't have an account? " : "Already have an account? "),
+                      Text(_isLogin ? "Chưa có tài khoản? " : "Đã có tài khoản? "),
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -195,7 +240,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           });
                         },
                         child: Text(
-                          _isLogin ? 'Sign up.' : 'Log in.',
+                          _isLogin ? 'Đăng ký.' : 'Đăng nhập.',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
