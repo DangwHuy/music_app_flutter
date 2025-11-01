@@ -88,7 +88,7 @@ class _MusicHomePageState extends State<MusicHomePage> {
     );
   }
 
-   // *** SỬA: Logic isSelected để tránh highlight sai ***
+  // *** SỬA: Logic isSelected để tránh highlight sai ***
   Widget _buildNavIcon(IconData icon, int index) {
     // Create (index=2) không bao giờ selected
     final isSelected = index == 2
@@ -498,7 +498,7 @@ class _StoryCircle extends StatelessWidget {
   }
 }
 
-// --- UPGRADED: PostCard with rounded corners, shadows, and animations ---
+// --- UPGRADED: PostCard with full image display (no cropping) ---
 class PostCard extends StatefulWidget {
   final DocumentSnapshot postDocument;
   const PostCard({super.key, required this.postDocument});
@@ -510,7 +510,6 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   late bool _isLiked;
   late int _likeCount;
-
   @override
   void initState() {
     super.initState();
@@ -596,7 +595,21 @@ class _PostCardState extends State<PostCard> {
             ),
             ClipRRect( // *** THÊM: Clip ảnh để rounded ***
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(postData['imageUrl'], fit: BoxFit.cover, width: double.infinity, height: 300),
+              child: Container(
+                width: double.infinity, // Width full
+                constraints: const BoxConstraints(maxHeight: 600), // TÙY CHỌN: Giới hạn max height nếu ảnh quá cao (có thể bỏ nếu muốn full height)
+                child: Image.network(
+                  postData['imageUrl'],
+                  fit: BoxFit.fitWidth, // THAY ĐỔI: Hiển thị full ảnh theo width, height tự động (không crop)
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(child: CircularProgressIndicator()); // Loading indicator cho ảnh
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: Icon(Icons.error, size: 50, color: Colors.grey)); // Error handling
+                  },
+                ),
+              ),
             ),
             Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), child: Row(children: [
               AnimatedScale( // *** THÊM: Scale animation cho like button ***
