@@ -15,6 +15,9 @@ import 'package:lan2tesst/ui/home/story/create_story_screen.dart';
 import 'package:lan2tesst/ui/home/story/story_view_screen.dart';
 import 'package:lan2tesst/ui/home/widgets/suggested_friends_widget.dart';
 import 'package:lan2tesst/ui/home/widgets/suggested_reels_widget.dart';
+import 'package:lan2tesst/ui/home/widgets/share_post_dialog.dart';
+
+
 // *** THÊM: Cho shimmer loading (tùy chọn) ***
 // import 'package:shimmer/shimmer.dart'; // Uncomment nếu dùng shimmer
 
@@ -641,7 +644,17 @@ class _PostCardState extends State<PostCard> {
                 child: IconButton(icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : null, size: 28), onPressed: _likePost), // *** THÊM: Icon size lớn hơn ***
               ),
               IconButton(icon: const Icon(Icons.chat_bubble_outline, size: 28), onPressed: _showCommentSheet),
-              IconButton(icon: const Icon(Icons.send_outlined, size: 28), onPressed: () {}),
+              IconButton(
+                  icon: const Icon(Icons.send_outlined, size: 28),
+                  onPressed: () {
+                    showSharePostDialog(
+                      context,
+                      postId: widget.postDocument.id,
+                      postImageUrl: postData['imageUrl'] ?? '',
+                      postCaption: postData['caption'] ?? '',
+                    );
+                  }
+              ),
               const Spacer(),
               IconButton(icon: const Icon(Icons.bookmark_border, size: 28), onPressed: () {}),
             ])),
