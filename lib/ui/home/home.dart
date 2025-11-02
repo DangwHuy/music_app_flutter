@@ -13,6 +13,8 @@ import 'package:lan2tesst/ui/user/user.dart';
 import 'package:lan2tesst/ui/user/user_profile_screen.dart';
 import 'package:lan2tesst/ui/home/story/create_story_screen.dart';
 import 'package:lan2tesst/ui/home/story/story_view_screen.dart';
+import 'package:lan2tesst/ui/home/widgets/suggested_friends_widget.dart';
+import 'package:lan2tesst/ui/home/widgets/suggested_reels_widget.dart';
 // *** THÊM: Cho shimmer loading (tùy chọn) ***
 // import 'package:shimmer/shimmer.dart'; // Uncomment nếu dùng shimmer
 
@@ -208,18 +210,39 @@ class HomeTab extends StatelessWidget {
               final posts = snapshot.data!.docs;
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
-                      (context, index) => AnimatedOpacity( // *** THÊM: Fade-in animation ***
-                    opacity: 1.0,
-                    duration: const Duration(milliseconds: 500),
-                    child: PostCard(
-                        key: ValueKey(posts[index].id),
-                        postDocument: posts[index]
-                    ),
-                  ),
-                  childCount: posts.length,
+                      (context, index) {
+                    // Reels xuất hiện tại index 3 (sau 3 posts)
+                    if (index == 3) {
+                      return const SuggestedReelsWidget();
+                    }
+
+                    // Friends xuất hiện tại index 6 (sau reels + 2 posts nữa)
+                    if (index == 6) {
+                      return const SuggestedFriendsWidget();
+                    }
+
+                    // Tính index của post
+                    int postIndex = index;
+                    if (index > 3) postIndex--;  // Trừ Reels
+                    if (index > 6) postIndex--;  // Trừ Friends
+
+                    // Kiểm tra giới hạn
+                    if (postIndex >= posts.length) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return AnimatedOpacity(
+                      opacity: 1.0,
+                      duration: const Duration(milliseconds: 500),
+                      child: PostCard(
+                          key: ValueKey(posts[postIndex].id),
+                          postDocument: posts[postIndex]
+                      ),
+                    );
+                  },
+                  childCount: posts.length + 2,
                 ),
-              );
-            },
+              );}
           ),
         ],
       ),
