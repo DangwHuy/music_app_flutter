@@ -16,7 +16,8 @@ import 'package:lan2tesst/ui/home/story/story_view_screen.dart';
 import 'package:lan2tesst/ui/home/widgets/suggested_friends_widget.dart';
 import 'package:lan2tesst/ui/home/widgets/suggested_reels_widget.dart';
 import 'package:lan2tesst/ui/home/widgets/share_post_dialog.dart';
-
+import 'package:cached_network_image/cached_network_image.dart';  // 👈 THÊM
+import 'package:lan2tesst/utils/user_data_cache.dart';  // 👈 THÊM (đường dẫn tùy project của bạn)
 
 // *** THÊM: Cho shimmer loading (tùy chọn) ***
 // import 'package:shimmer/shimmer.dart'; // Uncomment nếu dùng shimmer
@@ -138,6 +139,7 @@ class HomeTab extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade50, // *** THÊM: Background nhẹ ***
       body: CustomScrollView(
+        cacheExtent: 1000,  // 👈 THÊM dòng này - cache 1000px
         slivers: [
           SliverAppBar(
             title: const Text('Viewly', style: TextStyle(fontFamily: 'Billabong', fontSize: 30, color: Colors.black, fontWeight: FontWeight.w600)),
@@ -190,7 +192,11 @@ class HomeTab extends StatelessWidget {
           ),
           const SliverToBoxAdapter(child: _StoryBar()),
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('posts')
+                  .orderBy('timestamp', descending: true)
+                  .limit(20)  // 👈 THÊM dòng này - chỉ load 20 posts đầu tiên
+                  .snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 // *** THÊM: Placeholder đẹp cho loading ***
@@ -234,13 +240,9 @@ class HomeTab extends StatelessWidget {
                       return const SizedBox.shrink();
                     }
 
-                    return AnimatedOpacity(
-                      opacity: 1.0,
-                      duration: const Duration(milliseconds: 500),
-                      child: PostCard(
-                          key: ValueKey(posts[postIndex].id),
-                          postDocument: posts[postIndex]
-                      ),
+                    return PostCard(
+                        key: ValueKey(posts[postIndex].id),
+                        postDocument: posts[postIndex]
                     );
                   },
                   childCount: posts.length + 2,
@@ -525,6 +527,10 @@ class _StoryCircle extends StatelessWidget {
 }
 
 // --- UPGRADED: PostCard with full image display (no cropping) ---
+// ============================================
+// THAY THẾ class PostCard CŨ bằng code này
+// ============================================
+
 class PostCard extends StatefulWidget {
   final DocumentSnapshot postDocument;
   const PostCard({super.key, required this.postDocument});
@@ -533,9 +539,20 @@ class PostCard extends StatefulWidget {
   State<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<PostCard> {
+class _PostCardState extends State<PostCard>
+    with AutomaticKeepAliveClientMixin {  // 👈 THÊM mixin này
+
+  // 👇 THÊM dòng này - giữ state khi scroll
+  @override
+  bool get wantKeepAlive => true;
+
   late bool _isLiked;
   late int _likeCount;
+
+  // 👇 THÊM các biến này để cache author data
+  Map<String, dynamic>? _authorData;
+  bool _isLoadingAuthor = true;
+
   @override
   void initState() {
     super.initState();
@@ -543,6 +560,21 @@ class _PostCardState extends State<PostCard> {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     _isLiked = (postData['likes'] as List? ?? []).contains(currentUserId);
     _likeCount = (postData['likes'] as List? ?? []).length;
+
+    _loadAuthorData();  // 👈 Load author data 1 lần duy nhất
+  }
+
+  // 👇 THÊM function này
+  Future<void> _loadAuthorData() async {
+    final postData = widget.postDocument.data() as Map<String, dynamic>;
+    final authorData = await UserDataCache.getUserData(postData['userId']);
+
+    if (mounted) {
+      setState(() {
+        _authorData = authorData;
+        _isLoadingAuthor = false;
+      });
+    }
   }
 
   Future<void> _createNotification(String type) async {
@@ -570,7 +602,7 @@ class _PostCardState extends State<PostCard> {
 
     final postRef = widget.postDocument.reference;
 
-    // Update UI immediately (Optimistic Update)
+    // Optimistic update
     setState(() {
       if (_isLiked) {
         _likeCount -= 1;
@@ -581,70 +613,134 @@ class _PostCardState extends State<PostCard> {
       }
     });
 
-    // Update Firestore in the background
-    if (_isLiked) {
-      await postRef.update({'likes': FieldValue.arrayUnion([currentUser.uid])});
-      _createNotification('like');
-    } else {
-      await postRef.update({'likes': FieldValue.arrayRemove([currentUser.uid])});
+    // Background update với error handling
+    try {
+      if (_isLiked) {
+        await postRef.update({'likes': FieldValue.arrayUnion([currentUser.uid])});
+        _createNotification('like');
+      } else {
+        await postRef.update({'likes': FieldValue.arrayRemove([currentUser.uid])});
+      }
+    } catch (e) {
+      // Revert nếu có lỗi
+      if (mounted) {
+        setState(() {
+          _isLiked = !_isLiked;
+          _likeCount += _isLiked ? 1 : -1;
+        });
+      }
+      print('Error updating like: $e');
     }
   }
 
   void _showCommentSheet() {
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.8, minChildSize: 0.4, maxChildSize: 0.95,
-        builder: (_, controller) => CommentScreen(postDocument: widget.postDocument, scrollController: controller, onCommentPosted: () => _createNotification('comment')),
-      );
-    });
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (_, controller) => CommentScreen(
+            postDocument: widget.postDocument,
+            scrollController: controller,
+            onCommentPosted: () => _createNotification('comment'),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);  // 👈 BẮT BUỘC cho AutomaticKeepAliveClientMixin
+
     final postData = widget.postDocument.data() as Map<String, dynamic>;
 
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(postData['userId']).get(),
-      builder: (context, userSnapshot) {
-        if (!userSnapshot.hasData) return const SizedBox(height: 400); // Placeholder while loading author
-        final authorData = userSnapshot.data!.data() as Map<String, dynamic>;
-        return Card(
-          elevation: 4, // *** THÊM: Elevation cao hơn cho shadow ***
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0), // *** THÊM: Margin ***
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // *** THÊM: Rounded corners ***
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            ListTile(
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => UserProfileScreen(userId: postData['userId']))),
-              leading: CircleAvatar(backgroundImage: authorData['avatarUrl'] != null ? NetworkImage(authorData['avatarUrl']) : null, child: authorData['avatarUrl'] == null ? const Icon(Icons.person) : null),
-              title: Text(authorData['displayName']?.isNotEmpty == true ? authorData['displayName'] : authorData['username'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), // *** THÊM: Font size lớn hơn ***
-              trailing: IconButton(icon: const Icon(Icons.more_horiz), onPressed: () => showPostOptionsMenu(context, widget.postDocument)),
+    // 👇 Hiển thị placeholder khi đang load author
+    if (_isLoadingAuthor || _authorData == null) {
+      return _buildPlaceholder();
+    }
+
+    return Card(
+      elevation: 2,  // 👈 GIẢM từ 4 xuống 2
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          ListTile(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => UserProfileScreen(userId: postData['userId']),
+              ),
             ),
-            ClipRRect( // *** THÊM: Clip ảnh để rounded ***
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity, // Width full
-                constraints: const BoxConstraints(maxHeight: 600), // TÙY CHỌN: Giới hạn max height nếu ảnh quá cao (có thể bỏ nếu muốn full height)
-                child: Image.network(
-                  postData['imageUrl'],
-                  fit: BoxFit.fitWidth, // THAY ĐỔI: Hiển thị full ảnh theo width, height tự động (không crop)
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(child: CircularProgressIndicator()); // Loading indicator cho ảnh
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(child: Icon(Icons.error, size: 50, color: Colors.grey)); // Error handling
-                  },
+            leading: CircleAvatar(
+              // 👇 THAY ĐÔI: Dùng CachedNetworkImageProvider
+              backgroundImage: _authorData!['avatarUrl'] != null
+                  ? CachedNetworkImageProvider(_authorData!['avatarUrl'])
+                  : null,
+              child: _authorData!['avatarUrl'] == null
+                  ? const Icon(Icons.person)
+                  : null,
+            ),
+            title: Text(
+              _authorData!['displayName']?.isNotEmpty == true
+                  ? _authorData!['displayName']
+                  : _authorData!['username'],
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.more_horiz),
+              onPressed: () => showPostOptionsMenu(context, widget.postDocument),
+            ),
+          ),
+
+          // 👇 THAY ĐỔI: Dùng CachedNetworkImage thay vì Image.network
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: CachedNetworkImage(
+              imageUrl: postData['imageUrl'],
+              width: double.infinity,
+              fit: BoxFit.cover,  // 👈 Thay fitWidth
+              maxHeightDiskCache: 800,  // Giới hạn cache
+              memCacheWidth: 600,  // Cache trong memory
+              placeholder: (context, url) => Container(
+                height: 400,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: CircularProgressIndicator(),
                 ),
               ),
-            ),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), child: Row(children: [
-              AnimatedScale( // *** THÊM: Scale animation cho like button ***
-                scale: _isLiked ? 1.2 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: IconButton(icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : null, size: 28), onPressed: _likePost), // *** THÊM: Icon size lớn hơn ***
+              errorWidget: (context, url, error) => Container(
+                height: 400,
+                color: Colors.grey[200],
+                child: const Icon(Icons.error, size: 50, color: Colors.grey),
               ),
-              IconButton(icon: const Icon(Icons.chat_bubble_outline, size: 28), onPressed: _showCommentSheet),
-              IconButton(
+            ),
+          ),
+
+          // Actions - XÓA AnimatedScale
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: _isLiked ? Colors.red : null,
+                    size: 28,
+                  ),
+                  onPressed: _likePost,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline, size: 28),
+                  onPressed: _showCommentSheet,
+                ),
+                IconButton(
                   icon: const Icon(Icons.send_outlined, size: 28),
                   onPressed: () {
                     showSharePostDialog(
@@ -653,28 +749,90 @@ class _PostCardState extends State<PostCard> {
                       postImageUrl: postData['imageUrl'] ?? '',
                       postCaption: postData['caption'] ?? '',
                     );
-                  }
-              ),
-              const Spacer(),
-              IconButton(icon: const Icon(Icons.bookmark_border, size: 28), onPressed: () {}),
-            ])),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('$_likeCount likes', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), // *** THÊM: Font size ***
-              const SizedBox(height: 4),
-              RichText(text: TextSpan(style: const TextStyle(color: Colors.black, fontSize: 14), children: [TextSpan(text: '${authorData['username']} ', style: const TextStyle(fontWeight: FontWeight.bold)), TextSpan(text: postData['caption'] ?? '')])), // *** THÊM: Font size và color ***
-              const SizedBox(height: 8),
-              StreamBuilder<QuerySnapshot>(
-                stream: widget.postDocument.reference.collection('comments').snapshots(),
-                builder: (context, snapshot) {
-                  final commentCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                  return GestureDetector(onTap: _showCommentSheet, child: Text('View all $commentCount comments', style: const TextStyle(color: Colors.grey, fontSize: 14))); // *** THÊM: Font size ***
-                },
-              ),
-              const SizedBox(height: 16),
-            ])),
-          ]),
-        );
-      },
+                  },
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.bookmark_border, size: 28),
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          ),
+
+          // Caption
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$_likeCount likes',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.black, fontSize: 14),
+                    children: [
+                      TextSpan(
+                        text: '${_authorData!['username']} ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextSpan(text: postData['caption'] ?? ''),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // 👇 XÓA StreamBuilder, thay bằng static text
+                GestureDetector(
+                  onTap: _showCommentSheet,
+                  child: const Text(
+                    'View comments',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 👇 THÊM function placeholder
+  Widget _buildPlaceholder() {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey.shade300,
+            ),
+            title: Container(
+              height: 10,
+              width: 100,
+              color: Colors.grey.shade300,
+            ),
+            subtitle: Container(
+              height: 8,
+              width: 80,
+              color: Colors.grey.shade300,
+            ),
+          ),
+          Container(
+            height: 300,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 80),
+        ],
+      ),
     );
   }
 }
