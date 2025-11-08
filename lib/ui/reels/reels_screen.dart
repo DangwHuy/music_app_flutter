@@ -15,18 +15,53 @@ class ReelsTab extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+        automaticallyImplyLeading: false, // *** FIX: Tắt back button mặc định ***
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 22),
+            onPressed: () {
+              // *** FIX: Dùng pop thay vì pushReplacement ***
+              Navigator.of(context).pop();
+            },
+          ),
         ),
         title: const Text(
           'Reels',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 22,
+            letterSpacing: 0.5,
           ),
         ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 22),
+              onPressed: () {
+                // TODO: Open camera for new reel
+              },
+            ),
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -35,10 +70,23 @@ class ReelsTab extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Đang tải...',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -47,16 +95,33 @@ class ReelsTab extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.video_library_outlined,
-                    size: 80,
-                    color: Colors.white.withOpacity(0.3),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.video_library_outlined,
+                      size: 64,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   Text(
-                    'Chưa có thước phim nào',
+                    'Chưa có Reels nào',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 16,
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Hãy tạo Reels đầu tiên của bạn!',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 14,
                     ),
                   ),
                 ],
@@ -110,7 +175,6 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
   void initState() {
     super.initState();
 
-    // Setup like animation
     _likeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
@@ -140,9 +204,19 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Lỗi tải video: $error'),
-                backgroundColor: Colors.red.shade400,
+                content: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('Lỗi tải video: $error')),
+                  ],
+                ),
+                backgroundColor: Colors.red.shade600,
                 behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                margin: const EdgeInsets.all(16),
               ),
             );
           }
@@ -166,7 +240,6 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
 
     final reelRef = widget.reelDocument.reference;
 
-    // Trigger animation
     _likeAnimationController.forward().then((_) {
       _likeAnimationController.reverse();
     });
@@ -200,7 +273,6 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
       _isPlaying = !_isPlaying;
     });
 
-    // Hide pause icon after 500ms
     if (!_isPlaying) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
@@ -216,7 +288,6 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
     if (!_isLiked) {
       _likeReel();
     }
-    // Show heart animation
     _likeAnimationController.forward().then((_) {
       _likeAnimationController.reverse();
     });
@@ -227,10 +298,23 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
     super.build(context);
 
     if (!_isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Colors.white,
-          strokeWidth: 2,
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 2.5,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Đang tải video...',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -257,12 +341,15 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
             GestureDetector(
               onTap: _togglePlayPause,
               onDoubleTap: _handleDoubleTap,
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: _controller.value.size.width,
-                  height: _controller.value.size.height,
-                  child: VideoPlayer(_controller),
+              child: Container(
+                color: Colors.black,
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: _controller.value.size.width,
+                    height: _controller.value.size.height,
+                    child: VideoPlayer(_controller),
+                  ),
                 ),
               ),
             ),
@@ -274,15 +361,20 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                   opacity: _showPauseIcon ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.black.withOpacity(0.7),
+                          Colors.transparent,
+                        ],
+                      ),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      Icons.play_arrow,
+                      Icons.play_arrow_rounded,
                       color: Colors.white,
-                      size: 50,
+                      size: 64,
                     ),
                   ),
                 ),
@@ -294,8 +386,14 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                 scale: _likeAnimation,
                 child: Icon(
                   Icons.favorite,
-                  color: Colors.white.withOpacity(0.8),
-                  size: 100,
+                  color: Colors.white,
+                  size: 120,
+                  shadows: [
+                    Shadow(
+                      color: Colors.red.withOpacity(0.8),
+                      blurRadius: 30,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -303,7 +401,7 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
             // UI Overlay
             _buildUiOverlay(reelData, userData),
 
-            // Video Progress Bar (optional)
+            // Video Progress Bar
             Positioned(
               bottom: 0,
               left: 0,
@@ -312,11 +410,11 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                 _controller,
                 allowScrubbing: true,
                 colors: VideoProgressColors(
-                  playedColor: Colors.red.shade400,
-                  bufferedColor: Colors.white.withOpacity(0.3),
-                  backgroundColor: Colors.white.withOpacity(0.1),
+                  playedColor: Colors.white,
+                  bufferedColor: Colors.white.withOpacity(0.4),
+                  backgroundColor: Colors.white.withOpacity(0.2),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                padding: const EdgeInsets.all(0),
               ),
             ),
           ],
@@ -327,11 +425,14 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
 
   Widget _buildUiOverlay(Map<String, dynamic> reelData, Map<String, dynamic> userData) {
     final username = userData['username'] ?? 'Unknown';
+    final displayName = userData['displayName']?.isNotEmpty == true
+        ? userData['displayName']
+        : username;
     final avatarUrl = userData['avatarUrl'];
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -344,7 +445,7 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // User info
+                      // User info row
                       GestureDetector(
                         onTap: () {
                           Navigator.of(context).push(
@@ -355,68 +456,111 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                             ),
                           );
                         },
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.pink, Colors.orange, Colors.yellow],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.purple.shade400,
+                                    Colors.pink.shade400,
+                                    Colors.orange.shade400,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.purple.withOpacity(0.5),
+                                    blurRadius: 12,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: CircleAvatar(
+                                  radius: 22,
+                                  backgroundColor: Colors.grey.shade800,
+                                  backgroundImage: avatarUrl != null
+                                      ? NetworkImage(avatarUrl)
+                                      : null,
+                                  child: avatarUrl == null
+                                      ? const Icon(Icons.person, color: Colors.white)
+                                      : null,
+                                ),
+                              ),
                             ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.black,
-                              shape: BoxShape.circle,
-                            ),
-                            child: CircleAvatar(
-                              radius: 20,
-                              backgroundColor: Colors.grey.shade800,
-                              backgroundImage: avatarUrl != null
-                                  ? NetworkImage(avatarUrl)
-                                  : null,
-                              child: avatarUrl == null
-                                  ? const Icon(Icons.person, color: Colors.white)
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Username
-                      Text(
-                        username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black,
-                              blurRadius: 10,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayName,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black,
+                                          blurRadius: 8,
+                                        ),
+                                      ],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    '@$username',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontSize: 12,
+                                      shadows: const [
+                                        Shadow(
+                                          color: Colors.black,
+                                          blurRadius: 6,
+                                        ),
+                                      ],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       // Caption
                       if (reelData['caption'] != null &&
                           (reelData['caption'] as String).isNotEmpty)
                         Container(
-                          constraints: const BoxConstraints(maxWidth: 250),
+                          constraints: const BoxConstraints(maxWidth: 280),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
                           child: Text(
                             reelData['caption'],
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black,
-                                  blurRadius: 8,
-                                ),
-                              ],
+                              height: 1.3,
                             ),
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
@@ -443,14 +587,14 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                       },
                     ),
                     _buildActionButton(
-                      icon: Icons.send,
+                      icon: Icons.send_rounded,
                       label: 'Gửi',
                       onTap: () {
                         // TODO: Share functionality
                       },
                     ),
                     _buildActionButton(
-                      icon: Icons.more_horiz,
+                      icon: Icons.more_vert_rounded,
                       label: '',
                       onTap: () {
                         _showMoreOptions(context);
@@ -460,7 +604,7 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -474,14 +618,32 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
     Color? color,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.black.withOpacity(0.6),
+                Colors.black.withOpacity(0.4),
+              ],
+            ),
             shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -494,7 +656,7 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                     shadows: [
                       Shadow(
                         color: Colors.black,
@@ -522,53 +684,103 @@ class _ReelVideoPlayerState extends State<_ReelVideoPlayer>
   void _showMoreOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey.shade900,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade600,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade900,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
               ),
-              ListTile(
-                leading: const Icon(Icons.report_outlined, color: Colors.white),
-                title: const Text('Báo cáo', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: Report functionality
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.block_outlined, color: Colors.white),
-                title: const Text('Chặn người dùng', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: Block user
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.link_outlined, color: Colors.white),
-                title: const Text('Sao chép liên kết', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: Copy link
-                },
-              ),
-              const SizedBox(height: 8),
             ],
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade600,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                _buildBottomSheetItem(
+                  icon: Icons.report_outlined,
+                  title: 'Báo cáo',
+                  color: Colors.red.shade400,
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: Report functionality
+                  },
+                ),
+                _buildBottomSheetItem(
+                  icon: Icons.block_outlined,
+                  title: 'Chặn người dùng',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: Block user
+                  },
+                ),
+                _buildBottomSheetItem(
+                  icon: Icons.link_outlined,
+                  title: 'Sao chép liên kết',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: Copy link
+                  },
+                ),
+                _buildBottomSheetItem(
+                  icon: Icons.bookmark_border_outlined,
+                  title: 'Lưu Reel',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: Save reel
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBottomSheetItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (color ?? Colors.white).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color ?? Colors.white, size: 22),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: color ?? Colors.white,
+          fontWeight: FontWeight.w500,
+          fontSize: 15,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: Colors.grey.shade600,
+      ),
+      onTap: onTap,
     );
   }
 }
