@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:video_player/video_player.dart';
 import 'package:lan2tesst/ui/user/user_profile_screen.dart';
-
+import 'package:lan2tesst/ui/home/home.dart';
 class ReelsTab extends StatelessWidget {
   const ReelsTab({super.key});
 
