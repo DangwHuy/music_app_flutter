@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:lan2tesst/ui/home/home.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // *** THÊM: Import SharedPreferences ***
+import 'package:lan2tesst/ui/home/home.dart'; // Import MusicHomePage
+import 'package:lan2tesst/ui/onboarding/onboarding_screen.dart'; // *** THÊM: Import OnboardingScreen ***
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -38,9 +40,18 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+
+        // *** THÊM: Kiểm tra trạng thái onboarding sau login ***
+        final prefs = await SharedPreferences.getInstance();
+        final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const MusicHomePage()),
+            MaterialPageRoute(
+              builder: (context) => hasSeenOnboarding
+                  ? const MusicHomePage()  // Đã xem hướng dẫn -> Home
+                  : const OnboardingScreen(),  // Chưa xem -> Onboarding
+            ),
           );
         }
       } else {
