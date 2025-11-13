@@ -18,6 +18,8 @@ import 'package:lan2tesst/ui/home/widgets/suggested_reels_widget.dart';
 import 'package:lan2tesst/ui/home/widgets/share_post_dialog.dart';
 import 'package:cached_network_image/cached_network_image.dart';  // 👈 THÊM
 import 'package:lan2tesst/utils/user_data_cache.dart';  // 👈 THÊM (đường dẫn tùy project của bạn)
+import 'package:lan2tesst/ui/components/event_notification.dart';
+
 
 // *** THÊM: Cho shimmer loading (tùy chọn) ***
 // import 'package:shimmer/shimmer.dart'; // Uncomment nếu dùng shimmer
@@ -182,13 +184,17 @@ class HomeTab extends StatelessWidget {
                   },
                 ),
               IconButton(
-                icon: const Icon(Icons.message_outlined, size: 28), // *** THÊM: Icon lớn hơn ***
+                icon: const Icon(Icons.chat_rounded, size: 28), // *** THÊM: Icon lớn hơn ***
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConversationsScreen())),
               ),
             ],
             floating: true, snap: true, elevation: 2, // *** THÊM: Elevation nhẹ ***
             backgroundColor: Colors.white, // *** THÊM: Background trắng ***
             shadowColor: Colors.black12,
+          ),
+          // THÊM EVENT NOTIFICATION Ở ĐÂY
+          SliverToBoxAdapter(
+            child: EventNotification(),
           ),
           const SliverToBoxAdapter(child: _StoryBar()),
           StreamBuilder<QuerySnapshot>(
@@ -284,6 +290,7 @@ class HomeTab extends StatelessWidget {
     );
   }
 }
+
 
 // --- UPGRADED: _StoryBar with gradient borders and better spacing ---
 class _StoryBar extends StatefulWidget {
