@@ -3,11 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:flutter_localizations/flutter_localizations.dart'; // Temporarily commented out
 import 'package:lan2tesst/firebase_options.dart';
 import 'package:lan2tesst/ui/auth/auth_screen.dart';
 import 'package:lan2tesst/ui/home/home.dart';
-// import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // Temporarily commented out
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,18 +26,6 @@ class ViewlyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      // --- Temporarily commented out ---
-      // localizationsDelegates: const [
-      //   AppLocalizations.delegate,
-      //   GlobalMaterialLocalizations.delegate,
-      //   GlobalWidgetsLocalizations.delegate,
-      //   GlobalCupertinoLocalizations.delegate,
-      // ],
-      // supportedLocales: const [
-      //   Locale('en', ''), 
-      //   Locale('vi', ''),
-      // ],
-      // -----------------------
       home: const Wrapper(),
     );
   }
@@ -57,6 +43,7 @@ class _WrapperState extends State<Wrapper> {
   @override
   void initState() {
     super.initState();
+    // Listen to auth state changes to initialize messaging when user logs in
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
         _initMessaging(user);
@@ -64,14 +51,23 @@ class _WrapperState extends State<Wrapper> {
     });
   }
 
+  // Lấy FCM token và lưu vào Firestore
   Future<void> _initMessaging(User user) async {
     final messaging = FirebaseMessaging.instance;
-    
+
+    // Request permission
     await messaging.requestPermission();
 
+    // Get token
     final token = await messaging.getToken();
-    if (token == null) return;
+    if (token == null) {
+      print('Could not get FCM token.');
+      return;
+    }
 
+    print('FCM Token: $token');
+
+    // Lưu token vào Firestore
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'fcmTokens': FieldValue.arrayUnion([token])
     }, SetOptions(merge: true));

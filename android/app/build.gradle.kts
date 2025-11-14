@@ -6,11 +6,14 @@ plugins {
 }
 
 android {
-    namespace = "com.example.lan2tesst" // REVERTED
+    namespace = "com.example.lan2tesst"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // ✅ THÊM DÒNG NÀY
+        isCoreLibraryDesugaringEnabled = true
+
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -20,7 +23,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.lan2tesst" // REVERTED
+        applicationId = "com.example.lan2tesst"
+        // ✅ ĐẢM BẢO minSdk >= 21 (thay vì flutter.minSdkVersion)
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -36,4 +40,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// ✅ THÊM PHẦN NÀY
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
