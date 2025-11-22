@@ -21,7 +21,7 @@ class ProfileActionButtons extends StatelessWidget {
         Expanded(
           child: _buildOutlinedButton(
             onPressed: onEditProfile,
-            label: 'Chỉnh sửa trang cá nhân',
+            label: 'Chỉnh sửa',
           ),
         ),
         const SizedBox(width: 8),
@@ -29,7 +29,7 @@ class ProfileActionButtons extends StatelessWidget {
         Expanded(
           child: _buildOutlinedButton(
             onPressed: () => _shareProfile(context),
-            label: 'Chia sẻ trang cá nhân',
+            label: 'Chia sẻ ',
           ),
         ),
         const SizedBox(width: 8),
