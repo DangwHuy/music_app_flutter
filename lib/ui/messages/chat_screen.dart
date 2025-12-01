@@ -36,7 +36,7 @@ class _ChatScreenState extends State<ChatScreen> {
       'senderId': currentUser!.uid,
       'timestamp': Timestamp.now(),
       'isSystemMessage': false,
-      'type': 'text', // *** THÊM: Type cho tin nhắn thường
+      'type': 'text',
     };
 
     await FirebaseFirestore.instance.collection('conversations').doc(widget.conversationId).collection('messages').add(messageData);
@@ -87,13 +87,39 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // Helper để kiểm tra xem 2 timestamp có cùng ngày không
+  bool _isSameDay(DateTime? date1, DateTime? date2) {
+    if (date1 == null || date2 == null) return false;
+    return date1.year == date2.year && date1.month == date2.month && date1.day == date2.day;
+  }
+
+  // Format ngày hiển thị
+  String _formatDateSeparator(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = DateTime(now.year, now.month, now.day - 1);
+    final messageDate = DateTime(date.year, date.month, date.day);
+
+    if (messageDate == today) {
+      return 'Hôm nay';
+    } else if (messageDate == yesterday) {
+      return 'Hôm qua';
+    } else {
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('conversations').doc(widget.conversationId).snapshots(),
       builder: (context, convoSnapshot) {
         if (!convoSnapshot.hasData) {
-          return Scaffold(backgroundColor: Colors.black, appBar: AppBar(backgroundColor: Colors.black, title: const Text('Đang tải...')), body: const Center(child: CircularProgressIndicator()));
+          return Scaffold(
+              backgroundColor: Colors.black,
+              appBar: AppBar(backgroundColor: Colors.black, title: const Text('Đang tải...')),
+              body: const Center(child: CircularProgressIndicator())
+          );
         }
         final convoData = convoSnapshot.data!.data() as Map<String, dynamic>? ?? {};
         final nicknames = convoData['nicknames'] as Map<String, dynamic>? ?? {};
@@ -147,43 +173,76 @@ class _ChatScreenState extends State<ChatScreen> {
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final messageData = messages[index].data() as Map<String, dynamic>;
+                        final timestamp = messageData['timestamp'] as Timestamp?;
 
-                        // System message
-                        if (messageData['isSystemMessage'] == true) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
-                              child: Text(
-                                messageData['text'],
-                                style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                        // Kiểm tra xem có cần hiển thị ngày không
+                        bool showDateSeparator = false;
+                        if (timestamp != null) {
+                          if (index == messages.length - 1) {
+                            // Tin nhắn đầu tiên (cuối danh sách do reverse)
+                            showDateSeparator = true;
+                          } else {
+                            // So sánh với tin nhắn trước đó
+                            final prevMessageData = messages[index + 1].data() as Map<String, dynamic>;
+                            final prevTimestamp = prevMessageData['timestamp'] as Timestamp?;
+                            if (prevTimestamp != null) {
+                              showDateSeparator = !_isSameDay(timestamp.toDate(), prevTimestamp.toDate());
+                            }
+                          }
+                        }
+
+                        return Column(
+                          children: [
+                            // Hiển thị ngày phân cách
+                            if (showDateSeparator && timestamp != null)
+                              Center(
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 12.0),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade800,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _formatDateSeparator(timestamp.toDate()),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          );
-                        }
-
-                        final isMe = messageData['senderId'] == currentUser!.uid;
-                        final messageType = messageData['type'] ?? 'text';
-
-                        // *** THÊM: Render dựa trên type ***
-                        if (messageType == 'post_share') {
-                          return _SharedPostBubble(
-                            messageData: messageData,
-                            isMe: isMe,
-                            isGroup: widget.isGroup,
-                            senderId: messageData['senderId'],
-                            timestamp: messageData['timestamp'],
-                            nickname: nicknames[messageData['senderId']] as String?,
-                          );
-                        }
-
-                        // Text message
-                        return _MessageBubble(
-                          message: messageData['text'],
-                          isMe: isMe,
-                          isGroup: widget.isGroup,
-                          senderId: messageData['senderId'],
-                          timestamp: messageData['timestamp'],
-                          nickname: nicknames[messageData['senderId']] as String?,
+                            // System message
+                            if (messageData['isSystemMessage'] == true)
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Text(
+                                    messageData['text'],
+                                    style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                                  ),
+                                ),
+                              )
+                            else if (messageData['type'] == 'post_share')
+                              _SharedPostBubble(
+                                messageData: messageData,
+                                isMe: messageData['senderId'] == currentUser!.uid,
+                                isGroup: widget.isGroup,
+                                senderId: messageData['senderId'],
+                                timestamp: timestamp,
+                                nickname: nicknames[messageData['senderId']] as String?,
+                              )
+                            else
+                              _MessageBubble(
+                                message: messageData['text'],
+                                isMe: messageData['senderId'] == currentUser!.uid,
+                                isGroup: widget.isGroup,
+                                senderId: messageData['senderId'],
+                                timestamp: timestamp,
+                                nickname: nicknames[messageData['senderId']] as String?,
+                              ),
+                          ],
                         );
                       },
                     );
@@ -222,7 +281,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// *** THÊM: Widget cho Shared Post Bubble ***
+// Widget cho Shared Post Bubble
 class _SharedPostBubble extends StatelessWidget {
   final Map<String, dynamic> messageData;
   final bool isMe;
@@ -282,16 +341,12 @@ class _SharedPostBubble extends StatelessWidget {
           // Post preview card
           GestureDetector(
             onTap: () {
-              print('Tapped on post: $postId'); // DEBUG
               if (postId != null) {
-                print('Navigating to PostDetailScreen'); // DEBUG
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => PostDetailScreen(postId: postId),
                   ),
                 );
-              } else {
-                print('postId is null!'); // DEBUG
               }
             },
             child: Container(
@@ -388,10 +443,10 @@ class _SharedPostBubble extends StatelessWidget {
               ),
             ),
           ),
-          // Timestamp
+          // Timestamp (Giờ:Phút)
           if (formattedTime.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
               child: Text(formattedTime, style: const TextStyle(color: Colors.grey, fontSize: 10)),
             ),
         ],
@@ -400,7 +455,7 @@ class _SharedPostBubble extends StatelessWidget {
   }
 }
 
-// Original MessageBubble (unchanged)
+// Original MessageBubble
 class _MessageBubble extends StatelessWidget {
   final String message;
   final bool isMe;
@@ -421,7 +476,9 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final time = timestamp?.toDate();
-    final formattedTime = time != null ? '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}' : '';
+    final formattedTime = time != null
+        ? '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+        : '';
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -438,7 +495,9 @@ class _MessageBubble extends StatelessWidget {
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const SizedBox.shrink();
                   final senderData = snapshot.data!.data() as Map<String, dynamic>;
-                  final name = senderData['displayName']?.isNotEmpty == true ? senderData['displayName'] : senderData['username'];
+                  final name = senderData['displayName']?.isNotEmpty == true
+                      ? senderData['displayName']
+                      : senderData['username'];
                   return Text(name, style: const TextStyle(color: Colors.grey, fontSize: 12));
                 },
               ),
@@ -452,9 +511,10 @@ class _MessageBubble extends StatelessWidget {
             ),
             child: Text(message, style: const TextStyle(color: Colors.white)),
           ),
+          // Timestamp (Giờ:Phút)
           if (formattedTime.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
               child: Text(formattedTime, style: const TextStyle(color: Colors.grey, fontSize: 10)),
             ),
         ],
