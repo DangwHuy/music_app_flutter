@@ -194,7 +194,7 @@ class HomeTab extends StatelessWidget {
           ),
           // THÊM EVENT NOTIFICATION Ở ĐÂY
           SliverToBoxAdapter(
-            child: EventNotification(),
+            child: ChristmasNotification(),
           ),
           const SliverToBoxAdapter(child: _StoryBar()),
           StreamBuilder<QuerySnapshot>(
@@ -796,7 +796,7 @@ class _PostCardState extends State<PostCard>
                 GestureDetector(
                   onTap: _showCommentSheet,
                   child: const Text(
-                    'View comments',
+                    'Xem bình luận',
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
